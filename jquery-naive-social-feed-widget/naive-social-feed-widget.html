@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>Naive Social Feed Widget</title>
+        <meta charset="utf-8">
+        <meta name="description" content="Naive Social Feed Widget">
+        <meta name="author" content="Jaroslav Shkarupilo">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <script type="text/javascript" src="http://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-JavaScript-Templates/3.11.0/js/tmpl.min.js"></script>
+        
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+            }
+            .feedWidget > div {
+                margin: 1em 0;
+                padding: 1em 0.5em;
+                border: 1px solid #AAA;
+            }
+        </style>
+        
+        <script type="text/javascript">
+            (function($) {
+                "use strict";
+                
+                var DEFAULTS = {
+                    QUANTITY: 10,
+                    INTERVAL: 1000
+                };
+                var _wrapper;
+                var _options;
+                var _topmost;
+
+                $.fn.socialFeedWidget = function(options) {
+                    _wrapper = this;
+                    _options = options;
+                    if (!_options.feedUrl) {
+                        throw 'socialFeedWidget: "feedUrl" option is obligatory.';
+                    }
+                    _wrapper.each(function() {
+                        $(this).empty();
+                    });
+                    loadPosts(_options.feedUrl);
+                    return this;
+                };
+                
+                function getQuantity() {
+                    return parseInt(_options.quantity) || DEFAULTS.QUANTITY;
+                }
+                
+                function loadPosts(url) {
+                    var args = arguments;
+                    $.ajax(url, {
+                        success: function(data) {
+                            var insert = [];
+                            for (var i = 0, l = data.length; i < getQuantity() && i < l; i++) {
+                                if (!_topmost || data[i].id > _topmost) {
+                                    insert.push(tmpl('feed-post', data[i]));
+                                } else {
+                                    break;
+                                }
+                            }
+                            _wrapper.each(function() {
+                                $(this).prepend(insert);
+                                if ($(this).children('*').length > getQuantity()) {
+                                    $(this).children('*').slice(getQuantity()).remove();
+                                }
+                            });
+                            _topmost = data.length ? data[0].id : _topmost;
+                            loadPostsAfterInterval(args, _options.interval);
+                        },
+                        error: function() {
+                            //alert('An Unexpected Error Occurred');
+                            loadPostsAfterInterval(args, _options.interval);
+                        }
+                    });
+                }
+                
+                function loadPostsAfterInterval(args, interval) {
+                  setTimeout(function() {
+                    loadPosts.apply(null, args);
+                  }, parseInt(interval) || DEFAULTS.INTERVAL);
+                }
+
+            }(jQuery));
+        </script>
+        
+        <script type="text/x-tmpl" id="feed-post">
+            <div class="row">
+                <div class="col-xs-12">
+                    {%= moment(o.created_at, 'ddd MMM DD HH:mm:ss +0000 YYYY').format('DD/MM/YYYY HH:mm') %}
+                    &nbsp;&nbsp;
+                    <b>{%= o.user.name %}</b>
+                </div>
+                <div class="col-xs-12">
+                    <i>{%= o.text %}</i>
+                </div>
+            </div>
+        </script>
+        
+        <script type="text/javascript">
+            $(document).ready(function() {
+                try {
+                    $('.feedWidget').socialFeedWidget({
+                        feedUrl: 'http://api.massrelevance.com/MassRelDemo/kindle.json?limit=20',
+                        quantity: 5,
+                        interval: 10000
+                    });
+                } catch (e) {
+                    alert(e);
+                }
+            });
+        </script>
+        
+    </head>
+    <body>
+        <div class="feedWidget container col-xs-12 col-lg-6 col-xs-offset-0 col-lg-offset-3">Initializing...</div>
+        <!--
+        <div class="feedWidget container col-xs-12 col-lg-6">Initializing...</div>
+        <div class="feedWidget container col-xs-12 col-lg-6">Initializing...</div>
+        -->
+    </body>
+</html>
